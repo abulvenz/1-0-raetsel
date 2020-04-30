@@ -1,0 +1,62 @@
+@import 'reset.css';
+body {
+    margin: 0;
+    display: grid;
+    font-family: Hack, monospace;
+    grid-template-rows: banner 10vh field 90vh;
+}
+
+.banner {
+    background-color: yellowgreen;
+    display: grid;
+    grid-template-columns: 23vw 50vw 12vw;
+}
+
+.banner>h1 {
+    font-size: 10vh;
+    display: inline;
+}
+
+.banner>p {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.board {
+    padding: min(2vh, 2vw);
+    display: grid;
+    background-color: aqua;
+    grid-template-columns: repeat(10, min(7vh, 7vw));
+    gap: min(1vh, 1vw);
+}
+
+.box {
+    background-color: wheat;
+    border: 1px solid lightgray;
+    width: 100%;
+    height: min(7vh, 7vw);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    font-size: 4vh;
+}
+
+.unselectable {
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.box>input {
+    background-color: aqua;
+    height: min(7vh, 7vw);
+    width: min(7vh, 7vw);
+    text-align: center;
+}
+
+.disabled {
+    color: crimson;
+}
