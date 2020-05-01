@@ -2,9 +2,10 @@
 body {
     margin: 0;
     display: grid;
-    font-family: Hack, monospace;
+    font-family: Ha-ck, monospace;
     grid-template-rows: banner 10vh field 90vh;
     background-color: rgb(26, 3, 26);
+    color: white;
 }
 
 .wrapper {
@@ -18,29 +19,43 @@ body {
         display: grid;
         grid-template-columns: 4fr 2fr 1fr 1fr 1fr;
     }
+    .banner>button {
+        width: 100%;
+        border: none;
+        border-radius: 10px;
+        margin: 2px;
+        padding: 10px;
+        font-size: small;
+    }
+    .banner>h1 {
+        font-size: 10vh;
+        display: inline;
+    }
+    .banner>p {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
 }
 
 @media(max-width:720px) {
     .banner {
         background-color: yellowgreen;
-        display: grid;
-        grid-template-columns: "heading heading small";
     }
-}
-
-.banner>h1 {
-    font-size: 10vh;
-    display: inline;
-}
-
-.banner>p {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.banner>button {
-    width: 100%
+    .banner>button {
+        width: 30%;
+        border: none;
+        border-radius: 10px;
+        margin: 2px;
+        padding: 10px;
+        font-size: small;
+    }
+    .banner>h1 {
+        font-size: 5vh;
+    }
+    .banner>p {
+        display: none;
+    }
 }
 
 .board {
@@ -60,6 +75,7 @@ body {
     align-items: center;
     cursor: pointer;
     font-size: 4vh;
+    color: black;
 }
 
 .unselectable {
