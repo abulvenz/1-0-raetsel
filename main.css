@@ -4,10 +4,12 @@ body {
     display: grid;
     font-family: Hack, monospace;
     grid-template-rows: banner 10vh field 90vh;
+    background-color: rgb(26, 3, 26);
 }
 
 .wrapper {
-    width: min(90vh, 90vw)
+    margin: 1vw;
+    width: min(85vh, 98vw)
 }
 
 @media(min-width:720px) {
