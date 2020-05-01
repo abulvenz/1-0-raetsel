@@ -6,10 +6,24 @@ body {
     grid-template-rows: banner 10vh field 90vh;
 }
 
-.banner {
-    background-color: yellowgreen;
-    display: grid;
-    grid-template-columns: 23vw 50vw 12vw;
+.wrapper {
+    width: min(90vh, 90vw)
+}
+
+@media(min-width:720px) {
+    .banner {
+        background-color: yellowgreen;
+        display: grid;
+        grid-template-columns: 4fr 2fr 1fr 1fr 1fr;
+    }
+}
+
+@media(max-width:720px) {
+    .banner {
+        background-color: yellowgreen;
+        display: grid;
+        grid-template-columns: "heading heading small";
+    }
 }
 
 .banner>h1 {
@@ -23,21 +37,24 @@ body {
     align-items: center;
 }
 
+.banner>button {
+    width: 100%
+}
+
 .board {
-    padding: min(2vh, 2vw);
     display: grid;
-    background-color: aqua;
-    grid-template-columns: repeat(10, min(7vh, 7vw));
-    gap: min(1vh, 1vw);
+    grid-template-columns: repeat(10, 1fr);
+    gap: 1px;
+    grid-gap: 1px;
 }
 
 .box {
-    background-color: wheat;
-    border: 1px solid lightgray;
     width: 100%;
-    height: min(7vh, 7vw);
+    height: 0;
+    padding-bottom: 50%;
     display: flex;
     justify-content: center;
+    padding-top: 50%;
     align-items: center;
     cursor: pointer;
     font-size: 4vh;
@@ -60,3 +77,5 @@ body {
 .disabled {
     color: crimson;
 }
+
+@import './second.css';

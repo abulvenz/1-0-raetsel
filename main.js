@@ -1,7 +1,10 @@
 import m from 'mithril';
 import tagl from 'tagl-mithril';
+import games from './games';
 
-const { h1, div, small, button, p } = tagl(m);
+console.log(games)
+
+const { h1, div, small, button, p, pre } = tagl(m);
 
 const FieldSize = 10;
 
@@ -18,21 +21,21 @@ const use = (v, fn) => fn(v);
 const indicies = (arr, predicate) => arr.map((e, idx) => predicate(e) ? idx : undefined).filter(e => e !== undefined)
 
 const fieldStates = Object.freeze({
-    empty: { text: '', value: -1 },
-    init_0: { text: '0', value: 0, },
-    init_1: { text: '1', value: 1, },
+    empty_: { text: '', value: -1 },
+    init_0: { text: '0', value: 0 },
+    init_1: { text: '1', value: 1 },
     game_0: { text: '0', value: 0 },
     game_1: { text: '1', value: 1 },
 });
 
 const initialStateSet = [
-    fieldStates.empty,
+    fieldStates.empty_,
     fieldStates.init_0,
     fieldStates.init_1,
 ];
 
 const gameStateSet = [
-    fieldStates.empty,
+    fieldStates.empty_,
     fieldStates.game_0,
     fieldStates.game_1,
 ];
@@ -65,24 +68,35 @@ const columnTraversal = (colIdx, withCol) => use(columnIndices(colIdx).map(idx =
 const rowRuleValid = rowIdx => rowTraversal(rowIdx, fields => sumRuleValid(fields) && duoRuleValid(fields));
 const colRuleValid = colIdx => columnTraversal(colIdx, fields => sumRuleValid(fields) && duoRuleValid(fields));
 
-const field = flatMap(range(0, FieldSize)
-    .map(row => range(0, FieldSize).map(column => { return { row, column, value: fieldStates.empty }; })));
+const clear = () => flatMap(range(0, FieldSize)
+    .map(row => range(0, FieldSize).map(column => { return { row, column, value: fieldStates.empty_ }; })));
 
-use(localStorage.getItem('game'), oldGame => {
+let field = clear();
+
+
+
+const loadOldGame = oGame => {
+    field = clear();
     const findInitialObject = value =>
         initialStateSet.find(init => init.value === value)
+    oGame.forEach((value, idx) => {
+        field[idx].value = findInitialObject(value);
+    })
+};
 
+use(localStorage.getItem('game'), oldGame => {
     if (oldGame != null) {
         try {
             const oGame = JSON.parse(oldGame);
-            oGame.forEach((value, idx) => {
-                field[idx].value = findInitialObject(value);
-            })
+            console.log(oGame)
+            loadOldGame(oGame);
         } catch (error) {
+            console.error(error)
             localStorage.setItem('game', null);
         }
     }
 });
+
 
 const gameState = Object.freeze({
     setup: 'Fill in your numbers and hit "Start"!',
@@ -97,7 +111,7 @@ const appState = {
 const evaluateRows = () => range(0, FieldSize).every(rowRuleValid);
 const evaluateColumns = () => range(0, FieldSize).every(colRuleValid);
 
-const isFilled = () => field.every(f => f.value !== fieldStates.empty);
+const isFilled = () => field.every(f => f.value !== fieldStates.empty_);
 
 const isWon = () => evaluateRows() && evaluateColumns() && isFilled();
 
@@ -107,7 +121,7 @@ const patterns = [{
     precondition: [
         fieldStates.game_0,
         fieldStates.game_0,
-        fieldStates.empty
+        fieldStates.empty_
     ],
     postcondition: [
         fieldStates.game_0,
@@ -117,7 +131,7 @@ const patterns = [{
 }, {
     precondition: [
         fieldStates.game_0,
-        fieldStates.empty,
+        fieldStates.empty_,
         fieldStates.game_0
     ],
     postcondition: [
@@ -128,7 +142,7 @@ const patterns = [{
 }];
 
 patterns.forEach(pattern => {
-    const mirror = arr => arr.map(field => field === fieldStates.game_0 ? fieldStates.game_1 : field === fieldStates.game_1 ? fieldStates.game_0 : fieldStates.empty);
+    const mirror = arr => arr.map(field => field === fieldStates.game_0 ? fieldStates.game_1 : field === fieldStates.game_1 ? fieldStates.game_0 : fieldStates.empty_);
     patterns.push({ precondition: mirror(pattern.precondition), postcondition: mirror(pattern.postcondition) })
 });
 
@@ -169,11 +183,11 @@ const patch = (neighbors, pattern) => neighbors.forEach((neighbor, idx) =>
     fieldStates.game_0 : fieldStates.game_1 : null);
 
 const patchRowBySum = rowIdx => rowTraversal(rowIdx, row => use(numbersByValue(row), numbersByValue =>
-    (numbersByValue[fieldStates.empty.value] > 0 && (
+    (numbersByValue[fieldStates.empty_.value] > 0 && (
         numbersByValue[fieldStates.game_0.value] == FieldSize / 2 ||
         numbersByValue[fieldStates.game_1.value] == FieldSize / 2
     )) ?
-    indicies(row, v => v === fieldStates.empty.value)
+    indicies(row, v => v === fieldStates.empty_.value)
     .every(columnIdx =>
         field.find(f => f.column === columnIdx && f.row === rowIdx).value = (numbersByValue[fieldStates.game_0.value] > numbersByValue[fieldStates.game_1.value]) ?
         fieldStates.game_1 : fieldStates.game_0
@@ -181,11 +195,11 @@ const patchRowBySum = rowIdx => rowTraversal(rowIdx, row => use(numbersByValue(r
 ));
 
 const patchColumnBySum = columnIdx => columnTraversal(columnIdx, column => use(numbersByValue(column), numbersByValue =>
-    (numbersByValue[fieldStates.empty.value] > 0 && (
+    (numbersByValue[fieldStates.empty_.value] > 0 && (
         numbersByValue[fieldStates.game_0.value] == FieldSize / 2 ||
         numbersByValue[fieldStates.game_1.value] == FieldSize / 2
     )) ?
-    indicies(column, v => v === fieldStates.empty.value)
+    indicies(column, v => v === fieldStates.empty_.value)
     .forEach(rowIdx =>
         field.find(f => f.column === columnIdx && f.row === rowIdx).value = (numbersByValue[fieldStates.game_0.value] > numbersByValue[fieldStates.game_1.value]) ?
         fieldStates.game_1 : fieldStates.game_0
@@ -202,7 +216,7 @@ const advance = () => {
         start =
             traverse3neighbors(neighbors =>
                 neighbors.map(neighbor =>
-                    neighbors.some(neighbor => neighbor.value.value !== fieldStates.empty.value) ?
+                    neighbors.some(neighbor => neighbor.value.value !== fieldStates.empty_.value) ?
                     patterns.map(pattern => {
                         if (match(neighbors, pattern)) {
                             patch(neighbors, pattern);
@@ -232,27 +246,45 @@ m.mount(document.body, {
                         localStorage.setItem('game', JSON.stringify(field.map(f => f.value.value)))
                     }
                 }, "Start")),
+            whenState(gameState.setup,
+                () => button({
+                    onclick: () => {
+                        field = clear();
+                    }
+                }, "Clear")),
+            whenState(gameState.setup,
+                () => button({
+                        onclick: () => {
+                            loadOldGame(games[
+                                use(Object.keys(games), a => a[Math.floor(Math.random() * a.length)])
+                            ])
+                        },
+                    },
+                    "Random")),
             whenState(gameState.play,
                 () => button({
                     onclick: () => advance()
                 }, "Solve"))
         ),
-        div.board(
-            field.map(f => [
-                whenState(gameState.setup, () => div.box.unselectable({
-                    onclick: () => f.value = next(f.value, initialStateSet)
-                }, f.value.text)),
-                whenState(gameState.play, () =>
-                    f.value === fieldStates.init_0 || f.value === fieldStates.init_1 ?
-                    div.box.unselectable.disabled(f.value.text) :
-                    div.box.unselectable({
-                        onclick: () => f.value = next(f.value, gameStateSet)
-                    }, f.value.text))
-            ]),
+        div.wrapper(
+            div.board(
+                field.map((f, idx) => [
+                    whenState(gameState.setup, () => div.box.unselectable[`child${('0000'+idx).substr(-4,4)}`]({
+                        onclick: () => f.value = next(f.value, initialStateSet)
+                    }, f.value.text)),
+                    whenState(gameState.play, () =>
+                        f.value === fieldStates.init_0 || f.value === fieldStates.init_1 ?
+                        div.box.unselectable.disabled[`child${('0000'+idx).substr(-4,4)}`](f.value.text) :
+                        div.box.unselectable[`child${('0000'+idx).substr(-4,4)}`]({
+                            onclick: () => f.value = next(f.value, gameStateSet)
+                        }, f.value.text))
+                ]),
+            )
         ), [
             div(evaluateRows() ? '' : 'invalid rows'),
             div(evaluateColumns() ? '' : 'invalid columns'),
             div(isWon() ? 'won' : 'not yet won')
-        ]
+        ],
+        //  pre(JSON.stringify(field.map(f => f.value.value), null, 2))
     ]
 });
