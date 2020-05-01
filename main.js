@@ -15,33 +15,20 @@ const flatMap = (arr, fn = e => e) => arr.reduce((acc, e) => acc.concat(fn(e)), 
 
 const use = (v, fn) => fn(v);
 
+const indicies = (arr, predicate) => arr.map((e, idx) => predicate(e) ? idx : undefined).filter(e => e !== undefined)
+
 const fieldStates = Object.freeze({
-    empty: {
-        text: '',
-        value: -1
-    },
-    initial_0: {
-        text: '0',
-        value: 0,
-    },
-    initial_1: {
-        text: '1',
-        value: 1,
-    },
-    game_0: {
-        text: '0',
-        value: 0
-    },
-    game_1: {
-        text: '1',
-        value: 1
-    },
+    empty: { text: '', value: -1 },
+    init_0: { text: '0', value: 0, },
+    init_1: { text: '1', value: 1, },
+    game_0: { text: '0', value: 0 },
+    game_1: { text: '1', value: 1 },
 });
 
 const initialStateSet = [
     fieldStates.empty,
-    fieldStates.initial_0,
-    fieldStates.initial_1,
+    fieldStates.init_0,
+    fieldStates.init_1,
 ];
 
 const gameStateSet = [
@@ -69,11 +56,33 @@ const duoRuleValid = values => range(0, values.length - 3).map(start =>
     )
 ).every(e => e)
 
-const rowRuleValid = rowIdx => use(range(rowIdx * FieldSize, (rowIdx + 1) * FieldSize).map(idx => field[idx].value.value), fields => sumRuleValid(fields) && duoRuleValid(fields));
-const colRuleValid = colIdx => use(range(0, FieldSize).map(idx => idx * FieldSize + colIdx).map(idx => field[idx].value.value), fields => sumRuleValid(fields) && duoRuleValid(fields));
+const rowIndices = rowIdx => range(rowIdx * FieldSize, (rowIdx + 1) * FieldSize);
+const columnIndices = colIdx => range(0, FieldSize).map(idx => idx * FieldSize + colIdx);
+
+const rowTraversal = (rowIdx, withRow) => use(rowIndices(rowIdx).map(idx => field[idx].value.value), fields => withRow(fields));
+const columnTraversal = (colIdx, withCol) => use(columnIndices(colIdx).map(idx => field[idx].value.value), fields => withCol(fields));
+
+const rowRuleValid = rowIdx => rowTraversal(rowIdx, fields => sumRuleValid(fields) && duoRuleValid(fields));
+const colRuleValid = colIdx => columnTraversal(colIdx, fields => sumRuleValid(fields) && duoRuleValid(fields));
 
 const field = flatMap(range(0, FieldSize)
     .map(row => range(0, FieldSize).map(column => { return { row, column, value: fieldStates.empty }; })));
+
+use(localStorage.getItem('game'), oldGame => {
+    const findInitialObject = value =>
+        initialStateSet.find(init => init.value === value)
+
+    if (oldGame != null) {
+        try {
+            const oGame = JSON.parse(oldGame);
+            oGame.forEach((value, idx) => {
+                field[idx].value = findInitialObject(value);
+            })
+        } catch (error) {
+            localStorage.setItem('game', null);
+        }
+    }
+});
 
 const gameState = Object.freeze({
     setup: 'Fill in your numbers and hit "Start"!',
@@ -95,15 +104,118 @@ const isWon = () => evaluateRows() && evaluateColumns() && isFilled();
 const whenState = (state, cb) => appState.state === state ? cb() : null;
 
 const patterns = [{
-    precondition: ['a', 'a', ' '],
-    postcondition: ['a', 'a', 'b']
+    precondition: [
+        fieldStates.game_0,
+        fieldStates.game_0,
+        fieldStates.empty
+    ],
+    postcondition: [
+        fieldStates.game_0,
+        fieldStates.game_0,
+        fieldStates.game_1
+    ]
 }, {
-    precondition: ['a', 'a', ' '],
-    postcondition: ['a', 'a', 'b']
+    precondition: [
+        fieldStates.game_0,
+        fieldStates.empty,
+        fieldStates.game_0
+    ],
+    postcondition: [
+        fieldStates.game_0,
+        fieldStates.game_1,
+        fieldStates.game_0
+    ]
 }];
 
-const advance = () => {
+patterns.forEach(pattern => {
+    const mirror = arr => arr.map(field => field === fieldStates.game_0 ? fieldStates.game_1 : field === fieldStates.game_1 ? fieldStates.game_0 : fieldStates.empty);
+    patterns.push({ precondition: mirror(pattern.precondition), postcondition: mirror(pattern.postcondition) })
+});
 
+const up = (current, n) => field.find(f => f.row === current.row - n && f.column === current.column);
+const left = (current, n) => field.find(f => f.column === current.column - n && f.row === current.row);
+const down = (current, n) => field.find(f => f.row === current.row + n && f.column === current.column);
+const right = (current, n) => field.find(f => f.column === current.column + n && f.row === current.row);
+
+const traverse3neighbors = withNeighbors =>
+    field.map(f => {
+        let changed = false;
+        if (f.row < FieldSize - 2) {
+            const neighbors = [f, down(f, 1), down(f, 2)];
+            changed = withNeighbors(neighbors) || changed;
+        }
+        if (f.column < FieldSize - 2) {
+            const neighbors = [f, right(f, 1), right(f, 2)];
+            changed = withNeighbors(neighbors) || changed;
+        }
+        if (f.row > 1) {
+            const neighbors = [f, up(f, 1), up(f, 2)];
+            changed = withNeighbors(neighbors) || changed;
+        }
+        if (f.column > 1) {
+            const neighbors = [f, left(f, 1), left(f, 2)];
+            changed = withNeighbors(neighbors) || changed;
+        }
+        return changed;
+    }).some(e => e);
+
+
+const match = (neighbors, pattern) =>
+    neighbors.every((neighbor, idx) => neighbor.value.value === pattern.precondition[idx].value);
+
+const patch = (neighbors, pattern) => neighbors.forEach((neighbor, idx) =>
+    neighbor.value.value !== pattern.postcondition[idx].value ?
+    neighbor.value = pattern.postcondition[idx].value === fieldStates.game_0.value ?
+    fieldStates.game_0 : fieldStates.game_1 : null);
+
+const patchRowBySum = rowIdx => rowTraversal(rowIdx, row => use(numbersByValue(row), numbersByValue =>
+    (numbersByValue[fieldStates.empty.value] > 0 && (
+        numbersByValue[fieldStates.game_0.value] == FieldSize / 2 ||
+        numbersByValue[fieldStates.game_1.value] == FieldSize / 2
+    )) ?
+    indicies(row, v => v === fieldStates.empty.value)
+    .every(columnIdx =>
+        field.find(f => f.column === columnIdx && f.row === rowIdx).value = (numbersByValue[fieldStates.game_0.value] > numbersByValue[fieldStates.game_1.value]) ?
+        fieldStates.game_1 : fieldStates.game_0
+    ) : false
+));
+
+const patchColumnBySum = columnIdx => columnTraversal(columnIdx, column => use(numbersByValue(column), numbersByValue =>
+    (numbersByValue[fieldStates.empty.value] > 0 && (
+        numbersByValue[fieldStates.game_0.value] == FieldSize / 2 ||
+        numbersByValue[fieldStates.game_1.value] == FieldSize / 2
+    )) ?
+    indicies(column, v => v === fieldStates.empty.value)
+    .forEach(rowIdx =>
+        field.find(f => f.column === columnIdx && f.row === rowIdx).value = (numbersByValue[fieldStates.game_0.value] > numbersByValue[fieldStates.game_1.value]) ?
+        fieldStates.game_1 : fieldStates.game_0
+    ) : false
+));
+
+const patchRowsBySum = () => range(0, FieldSize).map(patchRowBySum).some(e => e);
+const patchColumnsBySum = () => range(0, FieldSize).map(patchColumnBySum).some(e => e);
+
+const advance = () => {
+    let start = true;
+    do {
+        start = false;
+        start =
+            traverse3neighbors(neighbors =>
+                neighbors.map(neighbor =>
+                    neighbors.some(neighbor => neighbor.value.value !== fieldStates.empty.value) ?
+                    patterns.map(pattern => {
+                        if (match(neighbors, pattern)) {
+                            patch(neighbors, pattern);
+                            return true;
+                        }
+                        return false;
+                    }).some(e => e) : false
+                ).some(e => e)
+            ) || start;
+        start = patchRowsBySum() || start;
+        start = patchColumnsBySum() || start;
+        m.redraw()
+    } while (start);
 };
 
 m.mount(document.body, {
@@ -115,7 +227,10 @@ m.mount(document.body, {
             ),
             whenState(gameState.setup,
                 () => button({
-                    onclick: () => appState.state = gameState.play
+                    onclick: () => {
+                        appState.state = gameState.play;
+                        localStorage.setItem('game', JSON.stringify(field.map(f => f.value.value)))
+                    }
                 }, "Start")),
             whenState(gameState.play,
                 () => button({
@@ -128,7 +243,7 @@ m.mount(document.body, {
                     onclick: () => f.value = next(f.value, initialStateSet)
                 }, f.value.text)),
                 whenState(gameState.play, () =>
-                    f.value === fieldStates.initial_0 || f.value === fieldStates.initial_1 ?
+                    f.value === fieldStates.init_0 || f.value === fieldStates.init_1 ?
                     div.box.unselectable.disabled(f.value.text) :
                     div.box.unselectable({
                         onclick: () => f.value = next(f.value, gameStateSet)
